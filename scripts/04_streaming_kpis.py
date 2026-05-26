@@ -52,13 +52,16 @@ kpis = (
     eventos
     .groupBy(F.window("event_time", "30 seconds"), "zona")
     .agg(
-        F.countDistinct("id_camion").alias("camiones_activos"),
+        F.approx_count_distinct("id_camion").alias("camiones_activos"),
         F.round(F.sum("toneladas"), 2).alias("toneladas_transportadas"),
         F.round(F.avg("velocidad"), 2).alias("velocidad_promedio"),
         F.round(F.avg("capacidad_patio"), 2).alias("capacidad_patio_promedio"),
         F.count("*").alias("eventos_recibidos"),
         F.sum(
-            F.when((F.col("estado") == "RETRASADO") | (F.col("velocidad") < 20), 1).otherwise(0)
+            F.when(
+                (F.col("estado") == "RETRASADO") | (F.col("velocidad") < 20),
+                1
+            ).otherwise(0)
         ).alias("alertas_retraso")
     )
     .select(
@@ -75,7 +78,7 @@ kpis = (
 )
 
 def guardar_batch(batch_df, batch_id):
-    if batch_df.count() == 0:
+    if batch_df.isEmpty():
         return
 
     salida = (
