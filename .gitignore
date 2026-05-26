@@ -1,0 +1,29 @@
+# Datos generados localmente
+data/**
+lakehouse/**
+checkpoints/**
+powerbi/**
+
+# Permitir subir solo la estructura vacía
+!data/
+!lakehouse/
+!checkpoints/
+!powerbi/
+
+!data/.gitkeep
+!lakehouse/.gitkeep
+!checkpoints/.gitkeep
+!powerbi/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
