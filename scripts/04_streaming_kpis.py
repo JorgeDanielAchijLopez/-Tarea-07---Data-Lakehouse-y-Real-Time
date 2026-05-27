@@ -4,6 +4,7 @@ from pyspark.sql.types import StructType, StructField, StringType, DoubleType, I
 
 KAFKA_BOOTSTRAP = "kafka:9092"
 TOPIC = "gpscamiones"
+
 LAKEHOUSE = "/opt/bitnami/spark/lakehouse"
 CHECKPOINTS = "/opt/bitnami/spark/checkpoints"
 POWERBI = "/opt/bitnami/spark/powerbi"
@@ -28,7 +29,8 @@ schema = StructType([
     StructField("estado", StringType(), True),
     StructField("velocidad", DoubleType(), True),
     StructField("toneladas", DoubleType(), True),
-    StructField("capacidad_patio", IntegerType(), True)
+    StructField("capacidad_patio", IntegerType(), True),
+    StructField("tiempo_viaje_minutos", IntegerType(), True)
 ])
 
 raw_stream = (
@@ -36,7 +38,8 @@ raw_stream = (
     .format("kafka")
     .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP)
     .option("subscribe", TOPIC)
-    .option("startingOffsets", "latest")
+    .option("startingOffsets", "earliest")
+    .option("failOnDataLoss", "false")
     .load()
 )
 
@@ -46,6 +49,7 @@ eventos = (
     .select("data.*")
     .withColumn("event_time", F.to_timestamp("timestamp"))
     .withWatermark("event_time", "1 minute")
+    .filter(F.col("event_time").isNotNull())
 )
 
 kpis = (
@@ -56,6 +60,7 @@ kpis = (
         F.round(F.sum("toneladas"), 2).alias("toneladas_transportadas"),
         F.round(F.avg("velocidad"), 2).alias("velocidad_promedio"),
         F.round(F.avg("capacidad_patio"), 2).alias("capacidad_patio_promedio"),
+        F.round(F.avg("tiempo_viaje_minutos"), 2).alias("tiempo_promedio_viaje"),
         F.count("*").alias("eventos_recibidos"),
         F.sum(
             F.when(
@@ -72,6 +77,7 @@ kpis = (
         "toneladas_transportadas",
         "velocidad_promedio",
         "capacidad_patio_promedio",
+        "tiempo_promedio_viaje",
         "eventos_recibidos",
         "alertas_retraso"
     )
@@ -79,6 +85,7 @@ kpis = (
 
 def guardar_batch(batch_df, batch_id):
     if batch_df.isEmpty():
+        print(f"Batch {batch_id} sin datos.")
         return
 
     salida = (
